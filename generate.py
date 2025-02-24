@@ -3,26 +3,44 @@
 # variable    x
 
 import random
+import numpy.random as npr
 
-def generate(
-    p         = 1,
-    variables = set(),
-    scale     = 0.5,
-    max_depth = 5,
-):
-    def generate_ast(p, variables, depth):
-        if len(variables) > 0 and (depth == max_depth or random.random() >= p):
-            return random.choice(list(variables))
-        if depth == max_depth:
-            return ('λ', 'x', 'x')
-        q = p * scale
-        if random.random() < 0.5:
-            return (
-                generate_ast(q, variables, depth + 1),
-                generate_ast(q, variables, depth + 1),
-            )
-        v = random.choice('abcdefghijklmnopqrstuvwxyz')
-        return ('λ', v, generate_ast(q, variables | {v}, depth + 1))
+def generate(depth):
+    def generate_ast(
+        variables   = set(),
+        depth       = 0,
+        max_depth   = 10,
+        force_depth = False,
+    ):
+        v = random.choice(
+            list(variables)
+            if len(variables) > 0 else
+            'abcdefghijklmnopqrstuvwxyz'
+        )
+        r = random.random()
+        if depth == max_depth: return v
+        if force_depth:
+            if r < 0.5:
+                v = random.choice('abcdefghijklmnopqrstuvwxyz')
+                return ('λ', v, generate_ast(variables | {v}, depth + 1, max_depth, force_depth))
+            else:
+                r = random.random()
+                return (
+                    generate_ast(variables, depth + 1, max_depth, r <  0.5),
+                    generate_ast(variables, depth + 1, max_depth, r >= 0.5),
+                )
+        else:
+            if r < 1/3:
+                v = random.choice('abcdefghijklmnopqrstuvwxyz')
+                return ('λ', v, generate_ast(variables | {v}, depth + 1, max_depth, force_depth))
+            elif r < 2/3:
+                r = random.random()
+                return (
+                    generate_ast(variables, depth + 1, max_depth, r <  0.5),
+                    generate_ast(variables, depth + 1, max_depth, r >= 0.5),
+                )
+            else:
+                return v
 
     def print_ast(ast, merge = False):
         match ast:
@@ -43,9 +61,17 @@ def generate(
             case s:
                 return s
 
-    ast = generate_ast(p, variables, 0)
-    # print(ast)
+    ast = generate_ast(
+        max_depth   = depth,
+        force_depth = True,
+    )
     return print_ast(ast)
 
 if __name__ == '__main__':
-    print(generate())
+    rng = npr.default_rng()
+    for n in rng.normal(
+        4,  # centre of the distribution
+        1,  # standard deviation
+        10, # number of expressions to generate
+    ):
+        print(generate(max(0, round(n))))
